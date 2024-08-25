@@ -1,15 +1,11 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ValidationError
 from typing import List, Union
+import json
 
 app = FastAPI()
-
-
-class CustomHTTPException(HTTPException):
-    def __init__(self, status_code: int, detail: str):
-        super().__init__(status_code=status_code, detail=detail)
-        self.is_success = False
 
 
 class DataInput(BaseModel):
@@ -31,22 +27,16 @@ class ErrorResponse(BaseModel):
     error: str
 
 
-@app.exception_handler(CustomHTTPException)
-async def custom_exception_handler(request: Request, exc: CustomHTTPException):
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
     return JSONResponse(
-        status_code=exc.status_code,
-        content=ErrorResponse(is_success=False, error=exc.detail).dict(),
+        status_code=422, content={"is_success": False, "error": str(exc)}
     )
 
 
 @app.post("/bfhl", response_model=Union[SuccessResponse, ErrorResponse])
 async def process_data(input_data: DataInput):
     try:
-        # Validate input
-        if not input_data.data:
-            raise CustomHTTPException(status_code=400, detail="Input data is empty")
-
-        # Process data
         numbers = [item for item in input_data.data if item.isdigit()]
         alphabets = [item for item in input_data.data if item.isalpha()]
 
@@ -62,11 +52,9 @@ async def process_data(input_data: DataInput):
             alphabets=alphabets,
             highest_lowercase_alphabet=[highest_lowercase] if highest_lowercase else [],
         )
-    except ValidationError as e:
-        raise CustomHTTPException(status_code=400, detail="Invalid input data format")
     except Exception as e:
-        raise CustomHTTPException(
-            status_code=500, detail="An unexpected error occurred"
+        return JSONResponse(
+            status_code=400, content={"is_success": False, "error": str(e)}
         )
 
 
