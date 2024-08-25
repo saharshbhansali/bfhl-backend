@@ -5,7 +5,9 @@ from pydantic import BaseModel, ValidationError
 from typing import List, Union
 import json
 
-app = FastAPI()
+app = FastAPI(
+    title="21BCI0028", description="My Task for Bajaj Finserv", version="1.0.1"
+)
 
 
 class DataInput(BaseModel):
